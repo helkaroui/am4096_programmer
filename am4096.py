@@ -1,12 +1,13 @@
 #!/usr/bin/python2.7
 #-*- coding: utf-8 -*-
 from smbus import SMBus
-import time
+from time import sleep
 
 class AM4096:
     """
     Class of the AM4096
     """
+    eeprom_write_delay = 0.025 #in datasheet: at least 20 ms
     #self.configuration = {'Pdint','AGCdis','Slowint','Pdtr','Pdie','Reg35','Adr','Abridis','Bufsel','Monsel','Sign','Zin','Nfil','Daa','Hist','Dact','Dac','SSIcfg','Sth','UVW','Res','SRCH','Rpos','Apos','Weh','Wel','Thof','Tho'}
 
     def __init__(self , bus , Name = None , address = None):
@@ -63,15 +64,25 @@ class AM4096:
         configuration['AGCgain']= int((row[0] >> 4) & 0x0F)
         configuration['Thof']= int((row[0] >> 2) & 0x01)
         configuration['Tho']= int(((row[0] & 0x03) << 8) + row[1])
-        
+
         if stored :
             self.configuration = configuration
-        return configuration 
-        
-    def set_address(self):
-        return
+        return configuration
+
+    def set_address(self,addr = 0):
+        if(addr < 0 or addr > 127 ) raise IOError('Address not in range')
+        row = self.read_memory(0)
+        new_row = [row[0] , (row[1] & 0x80) + addr]
+        return self.write_memory( 0 , new_row)
+
     def get_Absolute_position(self):
         row = self.read_memory(33)
+        return int(((row[0] & 0x0F) << 8) + row[1])
+
+    def set_rotation_dir(self):
+        pass
+    def get_Relative_position(self):
+        row = self.read_memory(32)
         return int(((row[0] & 0x0F) << 8) + row[1])
     def check_default_settings(self):
         pass
@@ -79,24 +90,26 @@ class AM4096:
         pass
     def get_status(self):
         pass
-    def scan_all(self):
+    def scan(self,addr = None):
         pass
     def get_device_list(self):
         pass
-    def connect_to(self,device):
-        pass
-    def connect_to_first(self):
+    def is_available(self):
         pass
     def read_memory(self, reg):
         return self.bus.read_i2c_block_data(self.address, reg)
         pass
     def write_memory(self, reg , data):
-        if (len(data)>2):
-            return False
-        res = self.bus.write_i2c_block_data(self.address, reg, data)
+        """
+        TODO: Add control on reg and data
+        """
+        if(self.address is None) raise IOError('No device address defined yet!')
+
+        eeprom = True if (reg < 30) else False
+        res = self.bus.write_i2c_block_data(self.address, reg, [((data >> 8) & 0xFF ), (data & 0xFF )])
+        if eeprom: sleep(eeprom_write_delay)
         return res
-    def write_memory_with_check(self,addr , reg , data):
-        pass
+
     def check_start_condition(self):
         """ Init repeated start mode"""
         try:
@@ -109,10 +122,9 @@ class AM4096:
     def __str__(self):
         print(self.configuration)
         pass
-        
+
 
 am = AM4096(1,address = 55)
-am.get_settings()
+am.write_memory(8,112)
 while(1):
     print(am.get_Absolute_position())
-
