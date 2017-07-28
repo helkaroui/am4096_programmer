@@ -1,7 +1,8 @@
 #!/usr/bin/python2.7
 #-*- coding: utf-8 -*-
 from smbus import SMBus
-from time import sleep
+import RPi.GPIO as GPIO
+from time import sleep , time
 
 class AM4096:
     """
@@ -70,7 +71,7 @@ class AM4096:
         return configuration
 
     def set_address(self,addr = 0):
-        if(addr < 0 or addr > 127 ) raise IOError('Address not in range')
+       
         row = self.read_memory(0)
         new_row = [row[0] , (row[1] & 0x80) + addr]
         return self.write_memory( 0 , new_row)
@@ -103,7 +104,7 @@ class AM4096:
         """
         TODO: Add control on reg and data
         """
-        if(self.address is None) raise IOError('No device address defined yet!')
+        if(self.address is None): raise IOError('No device address defined yet!')
 
         eeprom = True if (reg < 30) else False
         res = self.bus.write_i2c_block_data(self.address, reg, [((data >> 8) & 0xFF ), (data & 0xFF )])
@@ -123,8 +124,38 @@ class AM4096:
         print(self.configuration)
         pass
 
+GPIO.setmode(GPIO.BOARD)
 
+GPIO.setup(11,GPIO.OUT)
+GPIO.setup(12,GPIO.OUT,initial = GPIO.LOW)
+
+speed = 5.0
+
+
+p = GPIO.PWM(12,200)
 am = AM4096(1,address = 55)
-am.write_memory(8,112)
-while(1):
-    print(am.get_Absolute_position())
+    
+GPIO.output(11,GPIO.HIGH)
+
+save = open('meas/data.txt','w')
+
+
+while(speed <100):
+    p.ChangeDutyCycle(speed)
+    speed = speed + 5
+    rpm = 0
+    last_pos = am.get_Absolute_position()
+    start_time = time()
+    p.start(speed)
+    while((time() - start_time)<10):
+        current_pos = am.get_Absolute_position()
+        if(current_pos < 100 and last_pos > 4000):
+            rpm = rpm + 1
+        last_pos = current_pos
+        save.write(str(speed)+' '+str(current_pos)+' '+str(rpm)+'\n')
+    print('Rate: '+str(speed)+'% , RPM:'+str(rpm)+' rpm')
+    p.stop() 
+    sleep(1)
+save.close()    
+GPIO.output(11,GPIO.LOW)
+GPIO.cleanup()
