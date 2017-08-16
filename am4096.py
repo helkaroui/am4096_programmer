@@ -124,38 +124,9 @@ class AM4096:
         print(self.configuration)
         pass
 
-GPIO.setmode(GPIO.BOARD)
+am = AM4096(1,address = 0)
+am.set_address(55)
+while(1):
+    print(am.def get_Absolute_position(self))
 
-GPIO.setup(11,GPIO.OUT)
-GPIO.setup(12,GPIO.OUT,initial = GPIO.LOW)
-
-speed = 5.0
-
-
-p = GPIO.PWM(12,200)
-am = AM4096(1,address = 55)
-    
-GPIO.output(11,GPIO.HIGH)
-
-save = open('meas/data.txt','w')
-
-
-while(speed <100):
-    p.ChangeDutyCycle(speed)
-    speed = speed + 5
-    rpm = 0
-    last_pos = am.get_Absolute_position()
-    start_time = time()
-    p.start(speed)
-    while((time() - start_time)<10):
-        current_pos = am.get_Absolute_position()
-        if(current_pos < 100 and last_pos > 4000):
-            rpm = rpm + 1
-        last_pos = current_pos
-        save.write(str(speed)+' '+str(current_pos)+' '+str(rpm)+'\n')
-    print('Rate: '+str(speed)+'% , RPM:'+str(rpm)+' rpm')
-    p.stop() 
-    sleep(1)
-save.close()    
-GPIO.output(11,GPIO.LOW)
-GPIO.cleanup()
+ 
